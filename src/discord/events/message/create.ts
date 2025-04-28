@@ -6,10 +6,11 @@ import PrefixCommand from "../../../types/prefix-command";
 export default new Event({
     name: Events.MessageCreate,
     async execute(message: Message): Promise<void> {
-        console.log(message.content);
         if (!message.content.startsWith(config.PREFIX) || message.author.bot) {
             return;
         }
+
+        console.log(message.content);
 
         if (!client.application?.owner) {
             await client.application?.fetch();
