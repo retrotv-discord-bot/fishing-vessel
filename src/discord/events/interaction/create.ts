@@ -1,12 +1,12 @@
-import { Events, MessageFlags } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, Events, MessageFlags } from "discord.js";
 import Event from "../../../types/event";
 
 export default new Event({
     name: Events.InteractionCreate,
     once: false,
-    async execute(interaction) {
+    async execute(interaction: ChatInputCommandInteraction | AutocompleteInteraction) {
         if (interaction.isChatInputCommand()) {
-            const command = interaction.client.commands.get(interaction.commandName);
+            const command = client.slashCommands.get(interaction.commandName);
 
             if (!command) {
                 console.error(`No command matching ${interaction.commandName} was found.`);
@@ -14,7 +14,9 @@ export default new Event({
             }
 
             try {
-                await command.execute(interaction);
+                if (command.execute) {
+                    await command.execute(interaction);
+                }
             } catch (error) {
                 console.error(error);
                 if (interaction.replied || interaction.deferred) {
@@ -30,7 +32,7 @@ export default new Event({
                 }
             }
         } else if (interaction.isAutocomplete()) {
-            const command = interaction.client.commands.get(interaction.commandName);
+            const command = client.slashCommands.get(interaction.commandName);
 
             if (!command) {
                 console.error(`No command matching ${interaction.commandName} was found.`);
@@ -38,7 +40,9 @@ export default new Event({
             }
 
             try {
-                await command.autocomplete(interaction);
+                if (command.autocomplete) {
+                    await command.autocomplete(interaction);
+                }
             } catch (error) {
                 console.error(error);
             }

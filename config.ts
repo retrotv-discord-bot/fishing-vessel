@@ -8,6 +8,7 @@ if (!BOT_TOKEN || !BOT_ID) {
     throw new Error("Missing environment variables");
 }
 
+GUILD_ID ??= "";
 PREFIX ??= "!";
 
 export const config = {
