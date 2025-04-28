@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import SlashCommand from "../../../../types/slash-command";
 
 export default new SlashCommand({
@@ -12,7 +12,7 @@ export default new SlashCommand({
             ko: "봇이 살아있는지 확인하기 위해 핑을 보냅니다",
         }),
 
-    async execute(interaction) {
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
         if (interaction.options.getSubcommand() === "ping") {
             await interaction.reply("pong");
         }

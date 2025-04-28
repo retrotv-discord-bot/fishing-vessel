@@ -15,14 +15,8 @@ export default class SlashCommand {
         execute?: (interaction: ChatInputCommandInteraction) => Promise<void> | void;
         autocomplete?: (interaction: AutocompleteInteraction) => Promise<void> | void;
     }) {
-        if (options.execute) {
-            this.execute = options.execute;
-        } else if (options.autocomplete) {
-            this.autocomplete = options.autocomplete;
-        } else {
-            throw new Error("No execute function provided");
-        }
-
         this.data = options.data;
+        this.execute = options.execute;
+        this.autocomplete = options.autocomplete;
     }
 }
