@@ -4,7 +4,7 @@ import Event from "../../../types/event";
 export default new Event({
     name: Events.InteractionCreate,
     once: false,
-    async execute(interaction: ChatInputCommandInteraction | AutocompleteInteraction) {
+    async execute(interaction) {
         if (interaction.isChatInputCommand()) {
             const command = client.slashCommands.get(interaction.commandName);
 

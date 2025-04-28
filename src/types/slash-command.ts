@@ -2,16 +2,17 @@ import type {
     AutocompleteInteraction,
     ChatInputCommandInteraction,
     SlashCommandBuilder,
+    SlashCommandOptionsOnlyBuilder,
     SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
 
 export default class SlashCommand {
-    data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
+    data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
     execute?: (interaction: ChatInputCommandInteraction) => Promise<void> | void;
     autocomplete?: (interaction: AutocompleteInteraction) => Promise<void> | void;
 
     constructor(options: {
-        data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
+        data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
         execute?: (interaction: ChatInputCommandInteraction) => Promise<void> | void;
         autocomplete?: (interaction: AutocompleteInteraction) => Promise<void> | void;
     }) {
