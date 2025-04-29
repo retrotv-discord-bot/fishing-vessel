@@ -7,6 +7,10 @@ import {
 } from "discord.js";
 import Event from "../../../types/event";
 
+/**
+ * 봇이 상호작용을 수신했을 때 발생하는 이벤트
+ * Event that occurs when the bot receives an interaction
+ */
 export default new Event({
     name: Events.InteractionCreate,
     once: false,

@@ -3,6 +3,10 @@ import Event from "../../../types/event";
 import { config } from "../../../../config";
 import PrefixCommand from "../../../types/prefix-command";
 
+/**
+ * 봇이 메시지를 수신했을 때 발생하는 이벤트
+ * Event that occurs when the bot receives a message
+ */
 export default new Event({
     name: Events.MessageCreate,
     async execute(message: Message): Promise<void> {
