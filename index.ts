@@ -18,6 +18,9 @@ global.client = Object.assign(
     new Client({
         intents: [
             /*
+             * 각 권한이 제어하는 이벤트 참조: https://discord.com/developers/docs/events/gateway#list-of-intents
+             * Reference the events controlled by each permission: https://discord.com/developers/docs/events/gateway#list-of-intents
+             *
              * Guilds:                      서버 관련 이벤트를 수신할 수 있는 권한
              * GuildMembers:                서버의 멤버 관련 이벤트를 수신할 수 있는 권한
              * GuildModeration:             서버의 관리(모더레이션) 관련 이벤트를 수신할 수 있는 권한
@@ -41,14 +44,12 @@ global.client = Object.assign(
              * DirectMessagePolls:          다이렉트 메시지의 투표 이벤트를 수신할 수 있는 권한
              */
 
-            /*
-             * Guilds: 서버에 봇이 초대되거나 퇴장할 때, 슬래시 명령어 배포를 위해 필요
-             */
+            // 서버에 봇이 초대되거나 퇴장할 때, 슬래시 명령어 배포를 위해 필요
+            // When the bot is invited to or leaves a server, needed to deploy slash commands
             GatewayIntentBits.Guilds,
 
-            /*
-             * GuildMessages, MessageContent: Prefix 명령어를 사용하기 위해 필요
-             */
+            // Prefix 명령어를 사용하기 위해 필요
+            // Needed to use prefix commands
             GatewayIntentBits.GuildMessages,
             GatewayIntentBits.MessageContent,
         ],
@@ -61,18 +62,20 @@ global.client = Object.assign(
 );
 
 // 슬래시 명령어 불러오기
+// Load slash commands
 slashCommands.forEach((command) => {
     global.client.slashCommands.set(command.data.name, command);
 });
 
 // prefix 명령어 불러오기
+// Load prefix commands
 prefixCommands.forEach((command) => {
     global.client.prefixCommands.set(command.name, command);
 });
 
 // 이벤트 불러오기
+// Load events
 events.forEach((event) => {
-    console.log(`Loading event: ${event.name}`);
     if (event.once) {
         client.once(event.name, (...args) => event.execute(...args));
     } else {
@@ -81,4 +84,5 @@ events.forEach((event) => {
 });
 
 // 봇 로그인
+// Log in to the bot
 client.login(config.BOT_TOKEN);
