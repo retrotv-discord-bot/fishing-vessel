@@ -2,7 +2,7 @@
   "name": "discord-bot-template",
   "version": "1.0.0",
   "description": "Discord.js template",
-  "license": "GPL-2.0",
+  "license": "Apache-2.0",
   "author": "yjj8353@gmail.com",
   "type": "commonjs",
   "main": "index.ts",
