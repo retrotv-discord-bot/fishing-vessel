@@ -1,6 +1,6 @@
 import { Events } from "discord.js";
 
-import { deployCommands } from "../../commands/slash/deploy-commands";
+import { deployCommands } from "../../commands/deploy-commands";
 import Event from "../../../types/event";
 
 export default new Event({

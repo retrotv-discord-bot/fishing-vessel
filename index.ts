@@ -1,14 +1,16 @@
 import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
+import ContextMenuCommand from "./src/types/context-menu-command";
 import SlashCommand from "./src/types/slash-command";
 import PrefixCommand from "./src/types/prefix-command";
 
-import { slashCommands, prefixCommands } from "./src/discord/commands";
+import { contextMenuCommands, slashCommands, prefixCommands } from "./src/discord/commands";
 import { events } from "./src/discord/events";
 import { config } from "./config";
 
 declare global {
     // prettier-ignore
     var client: Client & { // NOSONAR
+        contextMenuCommands: Collection<string, ContextMenuCommand>;
         slashCommands: Collection<string, SlashCommand>;
         prefixCommands: Collection<string, PrefixCommand>;
     };
@@ -56,10 +58,16 @@ global.client = Object.assign(
         partials: [Partials.Channel],
     }),
     {
+        contextMenuCommands: new Collection<string, ContextMenuCommand>(),
         slashCommands: new Collection<string, SlashCommand>(),
         prefixCommands: new Collection<string, PrefixCommand>(),
     },
 );
+
+//
+contextMenuCommands.forEach((command) => {
+    global.client.contextMenuCommands.set(command.data.name, command);
+});
 
 // 슬래시 명령어 불러오기
 // Load slash commands
