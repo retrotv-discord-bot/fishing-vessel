@@ -1,4 +1,4 @@
-import type Event from "../../types/event";
+import type Event from "../../templates/event";
 
 import clientReady from "./client/ready";
 import guildCreate from "./guild/create";

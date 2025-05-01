@@ -1,5 +1,5 @@
 import { Events } from "discord.js";
-import Event from "../../../types/event";
+import Event from "../../../templates/event";
 
 /**
  * 봇이 준비되었을 때 발생하는 이벤트

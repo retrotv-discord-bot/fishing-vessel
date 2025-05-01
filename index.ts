@@ -1,7 +1,7 @@
 import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
-import ContextMenuCommand from "./src/types/context-menu-command";
-import SlashCommand from "./src/types/slash-command";
-import PrefixCommand from "./src/types/prefix-command";
+import ContextMenuCommand from "./src/templates/context-menu-command";
+import SlashCommand from "./src/templates/slash-command";
+import PrefixCommand from "./src/templates/prefix-command";
 
 import { contextMenuCommands, slashCommands, prefixCommands } from "./src/discord/commands";
 import { events } from "./src/discord/events";

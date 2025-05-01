@@ -1,7 +1,7 @@
 import { Events } from "discord.js";
 
 import { deployCommands } from "../../commands/deploy-commands";
-import Event from "../../../types/event";
+import Event from "../../../templates/event";
 
 /**
  * 봇이 서버에 초대되었을 때 발생하는 이벤트

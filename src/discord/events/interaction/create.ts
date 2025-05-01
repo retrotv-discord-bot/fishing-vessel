@@ -5,7 +5,7 @@ import {
     Events,
     MessageFlags,
 } from "discord.js";
-import Event from "../../../types/event";
+import Event from "../../../templates/event";
 
 /**
  * 봇이 상호작용을 수신했을 때 발생하는 이벤트

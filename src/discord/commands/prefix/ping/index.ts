@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import PrefixCommand from "../../../../types/prefix-command";
+import PrefixCommand from "../../../../templates/prefix-command";
 
 export default new PrefixCommand({
     name: "ping",

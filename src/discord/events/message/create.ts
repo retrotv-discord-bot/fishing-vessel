@@ -1,7 +1,7 @@
 import { Events, Message } from "discord.js";
-import Event from "../../../types/event";
+import Event from "../../../templates/event";
 import { config } from "../../../../config";
-import PrefixCommand from "../../../types/prefix-command";
+import PrefixCommand from "../../../templates/prefix-command";
 
 /**
  * 봇이 메시지를 수신했을 때 발생하는 이벤트
