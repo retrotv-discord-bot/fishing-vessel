@@ -64,7 +64,8 @@ global.client = Object.assign(
     },
 );
 
-//
+// 컨텍스트 메뉴 명령어 불러오기
+// Load context menu commands
 contextMenuCommands.forEach((command) => {
     global.client.contextMenuCommands.set(command.data.name, command);
 });

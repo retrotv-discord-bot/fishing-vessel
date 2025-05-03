@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
-import SlashCommand from "../../../../templates/slash-command";
+import SlashCommand from "../../../templates/slash-command";
 
 export default new SlashCommand({
     data: new SlashCommandBuilder()

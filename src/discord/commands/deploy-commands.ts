@@ -13,6 +13,10 @@ type DeployCommandsProps = {
     guildId: string;
 };
 
+/*
+ * 슬래시/컨텍스트 메뉴 명령어를 디스코드 서버에 배포함
+ * Deploy slash/context menu commands to Discord server
+ */
 export async function deployCommands({ guildId }: DeployCommandsProps) {
     try {
         await rest.put(Routes.applicationGuildCommands(config.BOT_ID, guildId), {

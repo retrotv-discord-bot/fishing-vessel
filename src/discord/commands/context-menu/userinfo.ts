@@ -1,7 +1,7 @@
 import { ApplicationCommandType, ContextMenuCommandBuilder } from "discord.js";
 
-import ContextMenuCommand from "../../../../templates/context-menu-command";
-import UserService from "../../../../services/user-service";
+import ContextMenuCommand from "../../../templates/context-menu-command";
+import UserService from "../../../services/user-service";
 
 export default new ContextMenuCommand({
     data: new ContextMenuCommandBuilder()
