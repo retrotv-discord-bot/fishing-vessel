@@ -4,3 +4,4 @@ eslint.config.js
 package.json
 package-lock.json
 tsconfig.json
+pm2.json
