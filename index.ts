@@ -1,4 +1,6 @@
+import { Cron } from "croner";
 import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
+
 import ContextMenuCommand from "./src/templates/context-menu-command";
 import SlashCommand from "./src/templates/slash-command";
 import PrefixCommand from "./src/templates/prefix-command";
@@ -6,6 +8,10 @@ import PrefixCommand from "./src/templates/prefix-command";
 import { contextMenuCommands, slashCommands, prefixCommands } from "./src/discord/commands";
 import { events } from "./src/discord/events";
 import { config } from "./config";
+import AlarmService from "./src/services/alarm.service";
+import VesselService from "./src/services/vessel.service";
+import { logger } from "./src/config/logger";
+import prisma from "./src/config/datasource";
 
 declare global {
     // prettier-ignore
@@ -92,6 +98,42 @@ events.forEach((event) => {
     }
 });
 
+const alarmService = new AlarmService();
+const vesselService = new VesselService();
+
+// 1분 마다 알람을 보내는 스케쥴러
+const alarmCron = new Cron("* * * * *", { timezone: "Asia/Seoul", name: "Alarm" }, async () => {
+    await alarmService.sendAlarm(globalThis.client);
+});
+
+logger.debug(alarmCron.name, " cron started");
+
+// 매일 자정마다 7일 이상된 어선을 삭제하는 스케쥴러
+// const cleanOldVesselsCron = new Cron("0 0 * * *", { timezone: "Asia/Seoul", name: "CleanOldVessels" }, async () => {
+//     await vesselService.cleanOldVessels();
+// });
+// logger.debug(cleanOldVesselsCron.name, " cron started");
+
 // 봇 로그인
 // Log in to the bot
 client.login(config.BOT_TOKEN);
+
+process.on("SIGINT", () => {
+    void (async () => {
+        await globalThis.client.destroy();
+        await prisma.$disconnect();
+
+        // eslint-disable-next-line n/no-process-exit
+        process.exit(0);
+    })();
+});
+
+process.on("SIGTERM", () => {
+    void (async () => {
+        await globalThis.client.destroy();
+        await prisma.$disconnect();
+
+        // eslint-disable-next-line n/no-process-exit
+        process.exit(0);
+    })();
+});

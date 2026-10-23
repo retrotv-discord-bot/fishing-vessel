@@ -21,11 +21,11 @@ import CrewRepository from "../repositories/crew.repository";
 import VesselRepository from "../repositories/vessel.repository";
 import VesselCrewRepository from "../repositories/vessel-crew.repository";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
-import { getChannelName } from "../utils/channel";
+import { getChannelNameByChatInputCommandInteraction } from "../utils/channel";
 import { validateDate } from "../utils/time";
 import { privateReply } from "../utils/reply";
 
-export default class UserService {
+export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
 
     private readonly client: PrismaClient;
@@ -42,7 +42,7 @@ export default class UserService {
 
     // 건조
     public async createVessel(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        const channelName = getChannelName(interaction);
+        const channelName = getChannelNameByChatInputCommandInteraction(interaction);
         const channelId = interaction.channelId;
         let alarmTime = interaction.options.getString("출항시간");
         let canMidParticipation: boolean | string | null = interaction.options.getBoolean("중참가능여부");
@@ -80,6 +80,9 @@ export default class UserService {
             vesselDescription,
             canMidParticipation,
         );
+
+        logger.debug("채널 명: " + channelName);
+        logger.debug("어선 명: " + vesselName);
 
         const captain = new CrewEntity(interaction.user.id);
 

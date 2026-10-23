@@ -1,7 +1,7 @@
 {
-  "name": "discord-bot-template",
+  "name": "Fishing-Vessel",
   "version": "1.0.0-beta",
-  "description": "Discord.js template",
+  "description": "디스코드용 어선 봇",
   "license": "Apache-2.0",
   "author": "yjj8353@gmail.com",
   "type": "commonjs",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.1",
     "@prisma/client": "^7",
+    "croner": "^10",
     "discord.js": "^14",
     "dotenv": "^18",
     "pino": "^10.4.0",

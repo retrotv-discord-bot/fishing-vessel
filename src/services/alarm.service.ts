@@ -8,6 +8,7 @@ import AlarmRepository from "../repositories/alarm.repository";
 import CrewRepository from "../repositories/crew.repository";
 import VesselRepository from "../repositories/vessel.repository";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
+import { getChannelNameById } from "../utils/channel";
 
 export default class AlarmService {
     private readonly client: PrismaClient;
@@ -23,34 +24,34 @@ export default class AlarmService {
     }
 
     public async sendAlarm(client: Client): Promise<void> {
-        // 현재 시간과 동일하거나 이전인 알람들을 조회
+        // 현재 시간과 동일하거나 이전인 알람들을 조회하고, 없으면 바로 리턴
         const alarms = await this.alarmRepository.findAlarmsTriggered();
-
         if (alarms.length === 0) {
             return;
         }
 
-        logger.info(`알람이 ${alarms.length}개 있습니다.`);
+        logger.trace(`알람이 ${alarms.length}개 있습니다.`);
 
-        // 알람 작동
-        for (const alarm of alarms) {
+        alarms.forEach(async (alarm) => {
             const vessel = await this.vesselRepository.findById(alarm.vesselName, alarm.vesselChannelId);
             if (vessel === null) {
                 logger.info(
                     `알람이 설정된 어선 ${alarm.vesselName}이 ${alarm.vesselChannelId} 채널에 존재하지 않습니다.`,
                 );
-                continue;
-            }
 
-            logger.info(`어선 명: ${vessel.name}`);
-            logger.info(`채널 ID: ${vessel.channelId}`);
+                return;
+            }
 
             const vesselName = vessel.name;
             const channelId = vessel.channelId;
+            const channelName = await getChannelNameById(channelId);
+
+            logger.debug(`어선 명: ${vesselName}`);
+            logger.debug(`채널 명: ${channelName}`);
 
             const crews = await this.crewRepository.findCrewsOnVessel(vesselName, channelId);
             if (crews.length === 0) {
-                continue;
+                return;
             }
 
             const crewIds = crews.map((crew) => crew.id);
@@ -65,7 +66,7 @@ export default class AlarmService {
                     await channel.send(userMentions);
                 }
             } catch {
-                logger.error(`${channelId} 채널이 존재하지 않습니다.`);
+                logger.error(`${channelName} 채널이 존재하지 않습니다.`);
             }
 
             try {
@@ -87,6 +88,6 @@ export default class AlarmService {
             } finally {
                 await this.client.$disconnect();
             }
-        }
+        });
     }
 }
