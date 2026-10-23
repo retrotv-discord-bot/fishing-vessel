@@ -10,6 +10,7 @@ import {
 import { PrismaClient } from "../../generated/prisma/client";
 import prisma from "../config/datasource";
 import { logger } from "../config/logger";
+import VesselAlreadyExistsError from "../errors/vessel-already-exists.error";
 import AlarmEntity from "../entities/alarm.entity";
 import CrewEntity from "../entities/crew.entity";
 import Vessel from "../entities/vessel";
@@ -18,7 +19,7 @@ import VesselCrewEntity from "../entities/vesselCrew.entity";
 import AlarmRepository from "../repositories/alarm.repository";
 import CrewRepository from "../repositories/crew.repository";
 import VesselRepository from "../repositories/vessel.repository";
-import VesselCrewRepository from "../repositories/vesselCrew.repository";
+import VesselCrewRepository from "../repositories/vessel-crew.repository";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
 import { getChannelName } from "../utils/channel";
 import { validateDate } from "../utils/time";
@@ -80,11 +81,6 @@ export default class UserService {
             canMidParticipation,
         );
 
-        // 동일한 채널에 같은 이름의 어선이 존재하는지 확인
-        if (await this.vesselRepository.isExists(newVessel.name, channelId)) {
-            return privateReply(interaction, "이미 존재하는 어선입니다.");
-        }
-
         const captain = new CrewEntity(interaction.user.id);
 
         let alarm: AlarmEntity | null = null;
@@ -95,18 +91,14 @@ export default class UserService {
         let savedVessel;
         try {
             // 트랜잭션
-            savedVessel = await this.client.$transaction(async (tx) => {
-                const txAlarmRepository = new AlarmRepository(tx as TransactionClient);
-                const txCrewRepository = new CrewRepository(tx as TransactionClient);
-                const txVesselRepository = new VesselRepository(tx as TransactionClient);
-                const txVesselCrewRepository = new VesselCrewRepository(tx as TransactionClient);
+            savedVessel = await this.client.$transaction(async (tx: TransactionClient) => {
+                const txAlarmRepository = new AlarmRepository(tx);
+                const txCrewRepository = new CrewRepository(tx);
+                const txVesselRepository = new VesselRepository(tx);
+                const txVesselCrewRepository = new VesselCrewRepository(tx);
 
-                const v = await txVesselRepository.save(newVessel);
+                const v = await txVesselRepository.create(newVessel);
                 await txCrewRepository.save(captain);
-
-                if (v === null) {
-                    throw new Error("어선 생성에 실패했습니다.");
-                }
 
                 // 3. VesselCrew 관계 저장 (선장으로 등록)
                 await txVesselCrewRepository.save(new VesselCrewEntity(v.name, v.channelId, captain.id, "선장"));
@@ -121,6 +113,10 @@ export default class UserService {
 
             logger.info(`${channelName}(${channelId})에서 '${vesselName}' 어선 생성됨`);
         } catch (err: unknown) {
+            if (err instanceof VesselAlreadyExistsError) {
+                return privateReply(interaction, err.message);
+            }
+
             if (err instanceof Error) {
                 logger.error("Error: " + err.message);
             }

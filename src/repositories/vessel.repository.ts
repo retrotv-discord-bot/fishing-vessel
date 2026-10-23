@@ -1,6 +1,6 @@
-import { logger } from "../config/logger";
-import { PrismaClient } from "../../generated/prisma/client";
+import { Prisma, PrismaClient } from "../../generated/prisma/client";
 import prisma from "../config/datasource";
+import VesselAlreadyExistsError from "../errors/vessel-already-exists.error";
 
 import type Vessel from "../entities/vessel.entity";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
@@ -12,29 +12,19 @@ export default class VesselRepository {
         this.client = client ?? prisma;
     }
 
-    public async save(vessel: Vessel): Promise<Vessel | null> {
-        let savedVessel = await this.client.vessels.findUnique({
-            where: {
-                vesselId: {
-                    name: vessel.name,
-                    channelId: vessel.channelId,
-                },
-            },
-        });
+    public async create(vessel: Vessel): Promise<Vessel> {
+        try {
+            return await this.client.vessels.create({
+                data: vessel,
+            });
+        } catch (err: unknown) {
+            // 복합키(name, channelId) unique 제약 위반 시 커스텀 에러로 변환
+            if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+                throw new VesselAlreadyExistsError(vessel.name);
+            }
 
-        // 이미 존재하는 어선인 경우, 예외 발생
-        if (savedVessel !== null) {
-            logger.debug("이미 존재하는 어선입니다.");
-            throw new Error("이미 존재하는 어선입니다.");
+            throw err;
         }
-
-        savedVessel = await this.client.vessels.create({
-            data: vessel,
-        });
-
-        logger.info("어선이 성공적으로 저장되었습니다.");
-
-        return savedVessel;
     }
 
     public async findById(vesselName: string, vesselChannelId: string): Promise<Vessel | null> {
