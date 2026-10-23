@@ -1,10 +1,10 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
-let { BOT_TOKEN, BOT_ID, GUILD_ID, PREFIX } = process.env;
+let { BOT_TOKEN, APPLICATION_ID, PUBLIC_KEY, GUILD_ID, PREFIX } = process.env;
 
-if (!BOT_TOKEN || !BOT_ID) {
+if (!BOT_TOKEN || !APPLICATION_ID) {
     throw new Error("Missing environment variables");
 }
 
@@ -13,7 +13,8 @@ PREFIX ??= "!";
 
 export const config = {
     BOT_TOKEN,
-    BOT_ID,
+    APPLICATION_ID,
+    PUBLIC_KEY,
     GUILD_ID,
     PREFIX,
 };

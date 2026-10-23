@@ -19,7 +19,7 @@ const rest = new REST({ version: "10" }).setToken(config.BOT_TOKEN);
  */
 (async () => {
     try {
-        await rest.put(Routes.applicationGuildCommands(config.BOT_ID, config.GUILD_ID), {
+        await rest.put(Routes.applicationGuildCommands(config.APPLICATION_ID, config.GUILD_ID), {
             body: commandsData,
         });
     } catch (error) {

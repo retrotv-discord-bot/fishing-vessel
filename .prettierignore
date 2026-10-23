@@ -5,3 +5,5 @@ package.json
 package-lock.json
 tsconfig.json
 pm2.json
+
+.vscode/settings.json

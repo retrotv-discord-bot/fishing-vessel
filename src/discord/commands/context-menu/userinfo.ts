@@ -1,4 +1,4 @@
-import { ApplicationCommandType, ContextMenuCommandBuilder } from "discord.js";
+import { ApplicationCommandType, ContextMenuCommandBuilder, MessageFlags } from "discord.js";
 
 import ContextMenuCommand from "../../../templates/context-menu-command";
 import UserService from "../../../services/user-service";
@@ -9,10 +9,10 @@ export default new ContextMenuCommand({
         .setNameLocalizations({
             ko: "유저 정보 보기",
         })
-        .setName("Collect user info")
-        .setNameLocalizations({
-            ko: "유저 정보 수집",
-        })
+        // .setName("Collect user info")
+        // .setNameLocalizations({
+        //     ko: "유저 정보 수집",
+        // })
         .setType(ApplicationCommandType.User),
 
     async execute(interaction): Promise<void> {
@@ -32,7 +32,7 @@ export default new ContextMenuCommand({
                         description: "유저 정보",
                     },
                 ],
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         } else if (interaction.commandName === "Collect user info") {
             const userService = new UserService();
@@ -42,7 +42,7 @@ export default new ContextMenuCommand({
             } catch (err: unknown) {
                 await interaction.reply({
                     content: `유저 정보를 저장하는 도중 오류가 발생했습니다.\nError: ${err}`,
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
 
                 return;

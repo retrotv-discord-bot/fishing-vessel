@@ -14,7 +14,53 @@ datasource db {
   provider = "sqlite"
 }
 
-model User {
-  id        Int     @id @default(autoincrement())
-  username  String
+// 어선 테이블
+model Vessels {
+  name                String          @map("NAME")
+  channelId           String          @map("CHANNEL_ID")
+  capacity            Int             @map("CAPACITY")
+  description         String          @map("DESCRIPTION")
+  createdAt           DateTime        @map("CREATED_AT") @default(now())
+  canMidParticipation String          @map("CAN_MID_PARTICIPATION")
+  crews               VesselsCrews[]
+  alarm               Alarms?
+
+  @@id(name: "vesselId", [name, channelId])
+  @@map("VESSELS")
+}
+
+// 선원 테이블
+model Crews {
+  id          String  @id @map("ID")
+  username    String  @map("USERNAME")
+  globalName  String  @map("GLOBAL_NAME")
+  nickname    String  @map("NICKNAME")
+  vessels     VesselsCrews[]
+
+  @@map("CREWS")
+}
+
+// 어선 - 선원 연계 테이블
+model VesselsCrews {
+  vesselName      String  @map("VESSEL_NAME")
+  vesselChannelId String  @map("VESSEL_CHANNEL_ID")
+  crewId          String  @map("CREW_ID")
+  position        String  @map("POSITION")
+
+  vessel    Vessels @relation(fields: [vesselName, vesselChannelId], references: [name, channelId], onDelete: Cascade, onUpdate: Cascade)
+  crew      Crews   @relation(fields: [crewId], references: [id], onDelete: Cascade)
+
+  @@id([vesselName, vesselChannelId, crewId])
+  @@map("VESSELS_CREWS")
+}
+
+model Alarms {
+  vesselName      String  @map("VESSEL_NAME")
+  vesselChannelId String  @map("VESSEL_CHANNEL_ID")
+  alarmTime       String  @map("ALARM_TIME")
+  use             String  @map("USE") @default("Y")
+  vessel          Vessels @relation(fields: [vesselName, vesselChannelId], references: [name, channelId], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([vesselName, vesselChannelId])
+  @@map("ALARMS")
 }

@@ -19,7 +19,7 @@ type DeployCommandsProps = {
  */
 export async function deployCommands({ guildId }: DeployCommandsProps) {
     try {
-        await rest.put(Routes.applicationGuildCommands(config.BOT_ID, guildId), {
+        await rest.put(Routes.applicationGuildCommands(config.APPLICATION_ID, guildId), {
             body: commandsData,
         });
     } catch (error) {
