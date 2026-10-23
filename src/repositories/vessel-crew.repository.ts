@@ -35,12 +35,12 @@ export default class VesselCrewRepository {
         return savedVesselCrew;
     }
 
-    public async delete(vesselId: string, vesselChannelId: string, crewId?: string): Promise<void> {
+    public async delete(vesselName: string, vesselChannelId: string, crewId?: string): Promise<void> {
         if (crewId) {
             await this.client.vesselsCrews.delete({
                 where: {
                     vesselName_vesselChannelId_crewId: {
-                        vesselName: vesselId,
+                        vesselName: vesselName,
                         vesselChannelId: vesselChannelId,
                         crewId: crewId,
                     },
@@ -49,7 +49,7 @@ export default class VesselCrewRepository {
         } else {
             await this.client.vesselsCrews.deleteMany({
                 where: {
-                    vesselName: vesselId,
+                    vesselName: vesselName,
                     vesselChannelId: vesselChannelId,
                 },
             });

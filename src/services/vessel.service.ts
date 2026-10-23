@@ -6,6 +6,7 @@ import {
     EmbedBuilder,
     InteractionResponse,
     MessageComponentInteraction,
+    MessageFlags,
     RepliableInteraction,
 } from "discord.js";
 
@@ -254,7 +255,105 @@ export default class VesselService {
 
     // 하선
     public async disembark(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+        const channelName = getChannelNameByChatInputCommandInteraction(interaction);
+        const crewId = interaction.user.id;
+        const vesselName = interaction.options.getString("선명")!;
+        const channelId = interaction.channelId;
+
+        const crew = await this.crewRepository.findCrewOnVesselById(vesselName, channelId, crewId);
+        if (crew === null) {
+            return privateReply(interaction, "해당 어선에 탑승하고 있지 않습니다.");
+        }
+
+        let isCaptain = false;
+        try {
+            await this.client.$transaction(async (tx: TransactionClient) => {
+                const txAlarmRepository = new AlarmRepository(tx);
+                const txCrewRepository = new CrewRepository(tx);
+                const txVesselRepository = new VesselRepository(tx);
+                const txVesselCrewRepository = new VesselCrewRepository(tx);
+
+                const vessel = await txVesselRepository.findByNameAndChannelId(vesselName, channelId);
+                if (vessel === null) {
+                    return privateReply(interaction, "해당 어선이 존재하지 않습니다.");
+                }
+
+                // 어선 하선
+                await txVesselCrewRepository.delete(vessel.name, vessel.channelId, crew.id);
+
+                logger.debug(`crew.id: ${crew.id}`);
+                logger.debug(`crew.vessels[0] crewId: ${crew.vessels[0]?.crewId}`);
+                logger.debug(`crew.vessels[0] vesselName: ${crew.vessels[0]?.vesselName}`);
+                logger.debug(`crew.vessels[0] position: ${crew.vessels[0]?.position}`);
+
+                if (crew.vessels[0]?.position === "선장") {
+                    logger.debug("현재 유저의 역할이 선장입니다. 어선도 같이 침몰합니다.");
+
+                    isCaptain = true;
+
+                    // 모든 선원 삭제
+                    const allCrews = await txCrewRepository.findMany(vesselName, channelId);
+                    if (allCrews.length > 0) {
+                        await txVesselCrewRepository.deleteMany(allCrews);
+                    }
+
+                    logger.debug("모든 유저를 삭제했습니다.");
+
+                    // 알람 삭제
+                    const allAlarms = await txAlarmRepository.findMany(vesselName, channelId);
+                    if (allAlarms) {
+                        const deleteConditions = allAlarms.map((alarm) => ({
+                            vesselName: alarm.vesselName,
+                            vesselChannelId: alarm.vesselChannelId,
+                            alarmTime: alarm.alarmTime,
+                        }));
+
+                        // deleteMany를 사용하여 삭제
+                        await txAlarmRepository.deleteMany(deleteConditions);
+                    }
+
+                    logger.debug("모든 알람을 삭제했습니다.");
+
+                    // 어선 삭제
+                    await txVesselRepository.deleteMany(vesselName, channelId);
+
+                    logger.debug("어선을 삭제했습니다.");
+                }
+            });
+        } catch (err) {
+            if (err instanceof Error) {
+                logger.error("Error: " + err.message);
+            }
+
+            return privateReply(interaction, "어선 하선에 실패했습니다.");
+        } finally {
+            await this.client.$disconnect();
+        }
+
+        const vesselEmbed = new EmbedBuilder()
+            .setColor(0x0099ff)
+            .setTitle(vesselName)
+            .setDescription("하선 완료!")
+            .setTimestamp(new Date())
+            .setFooter({ text: "어선 하선 완료!" });
+
+        // 선장이 하선한 경우, 어선이 침몰되었다고 추가로 알림
+        if (isCaptain) {
+            const vesselEmbed = new EmbedBuilder()
+                .setColor(0x0099ff)
+                .setTitle(vesselName)
+                .setDescription("어선이 침몰되었습니다!")
+                .setTimestamp(new Date())
+                .setFooter({ text: "꼬르륵!" });
+
+            if (!interaction.channel?.isTextBased() || !("send" in interaction.channel)) {
+                return privateReply(interaction, "채널에 메시지를 보낼 수 없습니다.");
+            }
+
+            await interaction.channel.send({ embeds: [vesselEmbed] });
+        }
+
+        return interaction.reply({ embeds: [vesselEmbed], flags: MessageFlags.Ephemeral });
     }
 
     // 침몰

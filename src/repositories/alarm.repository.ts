@@ -81,11 +81,14 @@ export default class AlarmRepository {
         });
     }
 
-    public async deleteMany(deleteConditions: { vesselId: string; alarmTime: string }[]): Promise<void> {
+    public async deleteMany(
+        deleteConditions: { vesselName: string; vesselChannelId: string; alarmTime: string }[],
+    ): Promise<void> {
         await this.client.alarms.deleteMany({
             where: {
                 OR: deleteConditions.map((condition) => ({
-                    vesselId: condition.vesselId,
+                    vesselName: condition.vesselName,
+                    vesselChannelId: condition.vesselChannelId,
                     alarmTime: condition.alarmTime,
                 })),
             },
