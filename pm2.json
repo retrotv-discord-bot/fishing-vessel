@@ -6,7 +6,7 @@
       "interpreter": "./node_modules/.bin/ts-node",
       "instances": 1,
       "exec_mode": "fork",
-      "watch": [ "src", "index.ts" ],
+      "watch": [ "src", "index.ts", "tsconfig.json" ],
       "auto_restart": true,
       "ignore_watch": [ "node_modules" ]
     }

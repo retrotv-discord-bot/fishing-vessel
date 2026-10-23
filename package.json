@@ -19,9 +19,9 @@
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.1",
     "@prisma/client": "^7",
-    "better-sqlite3": "^13",
     "discord.js": "^14",
     "dotenv": "^18",
+    "pino": "^10.4.0",
     "ts-node": "^10"
   },
   "devDependencies": {
@@ -32,14 +32,15 @@
     "eslint-config-prettier": "^10",
     "eslint-plugin-node": "^11",
     "eslint-plugin-prettier": "^5",
+    "pino-pretty": "^13.2.0",
     "pm2": "^7",
     "prettier": "^3",
     "prisma": "^7"
   },
   "allowScripts": {
+    "better-sqlite3@12.11.1": true,
     "@prisma/engines@7.10.1": true,
     "prisma@7.10.1": true,
-    "fsevents": false,
-    "better-sqlite3@12.11.1": true
+    "fsevents": false
   }
 }

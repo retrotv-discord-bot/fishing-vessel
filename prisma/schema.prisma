@@ -32,9 +32,6 @@ model Vessels {
 // 선원 테이블
 model Crews {
   id          String  @id @map("ID")
-  username    String  @map("USERNAME")
-  globalName  String  @map("GLOBAL_NAME")
-  nickname    String  @map("NICKNAME")
   vessels     VesselsCrews[]
 
   @@map("CREWS")
