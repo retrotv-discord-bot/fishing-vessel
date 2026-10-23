@@ -122,27 +122,28 @@ export default new SlashCommand({
         const focusedValue = interaction.options.getFocused(false);
         let choices: string[];
 
-        // switch (interaction.options.getSubcommand()) {
-        //     case "승선":
-        //         choices = await vesselService.getAllVessels(focusedValue, interaction.channelId);
-        //         break;
-        //     case "침몰":
-        //         choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id, "선장");
-        //         break;
-        //     case "하선":
-        //         choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id);
-        //         break;
-        //     case "선원목록":
-        //         choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id);
-        //         break;
-        //     case "호출":
-        //         choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id, "선장");
-        //         break;
-        //     default:
-        //         return;
-        // }
+        // prettier-ignore
+        switch (interaction.options.getSubcommand()) {
+            case "승선":
+                choices = await vesselService.getAllVessels(focusedValue, interaction.channelId);
+                break;
+            case "침몰":
+                choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id, "선장");
+                break;
+            case "하선":
+                choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id);
+                break;
+            case "선원목록":
+                choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id);
+                break;
+            case "호출":
+                choices = await vesselService.getAllVessels(focusedValue, interaction.channelId, interaction.user.id, "선장");
+                break;
+            default:
+                return;
+        }
 
-        // await interaction.respond(choices.map((choice) => ({ name: choice, value: choice })));
+        await interaction.respond(choices.map((choice) => ({ name: choice, value: choice })));
     },
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void | InteractionResponse<boolean>> {

@@ -5,6 +5,8 @@ import {
     ChatInputCommandInteraction,
     EmbedBuilder,
     InteractionResponse,
+    MessageComponentInteraction,
+    RepliableInteraction,
 } from "discord.js";
 
 import { PrismaClient } from "../../generated/prisma/client";
@@ -24,6 +26,7 @@ import { TransactionClient } from "../../generated/prisma/internal/prismaNamespa
 import { getChannelNameByChatInputCommandInteraction } from "../utils/channel";
 import { validateDate } from "../utils/time";
 import { privateReply } from "../utils/reply";
+import Crew from "../entities/crew";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -154,8 +157,99 @@ export default class VesselService {
     }
 
     // 승선
-    public async embark(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+    public async embark(
+        interaction: ChatInputCommandInteraction | MessageComponentInteraction,
+    ): Promise<InteractionResponse<boolean>> {
+        const crewId = interaction.user.id;
+        const crewName = interaction.user.username;
+        const crewGlobalName = interaction.user?.displayName ?? interaction.user?.globalName ?? crewName;
+        const channelId = interaction.channelId;
+        let vesselName;
+        if (interaction.isChatInputCommand()) {
+            vesselName = interaction.options.getString("선명");
+        } else if (interaction.isMessageComponent()) {
+            vesselName = interaction.customId.replace("embark_", "");
+        }
+
+        if (!vesselName) {
+            return privateReply(interaction as RepliableInteraction, "해당하는 어선명을 찾을 수 없습니다.");
+        }
+
+        // 어선 조회
+        const vessel = await this.vesselRepository.findByNameAndChannelId(vesselName, channelId);
+        if (vessel === null) {
+            return privateReply(interaction as RepliableInteraction, "해당 어선이 존재하지 않습니다.");
+        }
+
+        // 어선 탑승여부 확인
+        const isExists = await this.crewRepository.isExistsOnVessel(crewId, vessel.name, vessel.channelId);
+        if (isExists) {
+            return privateReply(interaction as RepliableInteraction, "이미 해당 어선에 탑승하고 있습니다.");
+        }
+
+        const crews = await this.crewRepository.findCrewsOnVesselByVesselId(vessel.name, vessel.channelId);
+        if (crews.length >= vessel.capacity) {
+            return privateReply(interaction as RepliableInteraction, "어선의 정원이 초과되었습니다.");
+        }
+
+        if (vessel.canMidParticipation === "N") {
+            const alarmTime = await this.alarmsRepository.findByVesselId(vessel.name, vessel.channelId);
+            if (alarmTime !== null) {
+                const now = new Date();
+                const nowHHMM = now.getHours() * 100 + now.getMinutes();
+
+                if (nowHHMM >= Number.parseInt(alarmTime.alarmTime)) {
+                    return privateReply(
+                        interaction as RepliableInteraction,
+                        "어선의 출항시간이 지나서 승선할 수 없습니다!",
+                    );
+                }
+            }
+        }
+
+        try {
+            logger.debug("===== 어선 승선 시작 =====");
+            logger.debug(`유저 ID: ${crewId}`);
+            logger.debug(`유저 이름: ${crewName}`);
+            logger.debug(`유저 글로벌 이름: ${crewGlobalName}`);
+            logger.debug(`어선 명: ${vessel.name}`);
+            logger.debug("유저 역할: 선원");
+
+            const newCrew: Crew = {
+                id: crewId,
+            };
+
+            await this.client.$transaction(async (tx: TransactionClient) => {
+                const txCrewRepository = new CrewRepository(tx);
+                await txCrewRepository.embarkCrew(newCrew, vessel.name, vessel.channelId);
+            });
+
+            logger.debug("===== 어선 승선 완료 =====");
+        } catch (err) {
+            if (err instanceof Error) {
+                logger.error("Error: " + err.message);
+            }
+
+            return privateReply(interaction as RepliableInteraction, "어선 승선에 실패했습니다.");
+        } finally {
+            await this.client.$disconnect();
+        }
+
+        const vesselEmbed = new EmbedBuilder()
+            .setColor(0x0099ff)
+            .setTitle(vesselName)
+            .setFields({ name: "승선한 선원", value: `${crewGlobalName}` })
+            .setDescription("승선 완료!")
+            .setTimestamp(new Date())
+            .setFooter({ text: "어선 승선 완료!" });
+
+        const embarkButton = new ButtonBuilder()
+            .setCustomId("embark_" + vesselName)
+            .setLabel("탑승하기")
+            .setStyle(ButtonStyle.Primary);
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(embarkButton);
+
+        return interaction.reply({ embeds: [vesselEmbed], components: [row] });
     }
 
     // 하선
@@ -184,7 +278,12 @@ export default class VesselService {
     }
 
     // 모든 어선 조회
-    public async getAllVessels(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+    public async getAllVessels(
+        vesselsName: string,
+        channelId: string,
+        crewId?: string,
+        position?: string,
+    ): Promise<string[]> {
+        return await this.vesselRepository.findVesselsName(vesselsName, channelId, crewId, position);
     }
 }

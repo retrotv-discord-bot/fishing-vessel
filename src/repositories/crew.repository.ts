@@ -80,13 +80,14 @@ export default class CrewRepository {
         });
     }
 
-    public async findCrewsOnVesselByVesselId(vesselId: string): Promise<Crew[]> {
+    public async findCrewsOnVesselByVesselId(vesselName: string, vesselChannelId: string): Promise<Crew[]> {
         return await this.client.crews.findMany({
             where: {
                 vessels: {
                     some: {
                         vessel: {
-                            id: vesselId,
+                            name: vesselName,
+                            channelId: vesselChannelId,
                         },
                     },
                 },

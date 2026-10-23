@@ -8,7 +8,7 @@ import AlarmRepository from "../repositories/alarm.repository";
 import CrewRepository from "../repositories/crew.repository";
 import VesselRepository from "../repositories/vessel.repository";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
-import { getChannelNameById } from "../utils/channel";
+import { getChannelNameByClientAndId } from "../utils/channel";
 
 export default class AlarmService {
     private readonly client: PrismaClient;
@@ -44,7 +44,7 @@ export default class AlarmService {
 
             const vesselName = vessel.name;
             const channelId = vessel.channelId;
-            const channelName = await getChannelNameById(channelId);
+            const channelName = await getChannelNameByClientAndId(client, channelId);
 
             logger.debug(`어선 명: ${vesselName}`);
             logger.debug(`채널 명: ${channelName}`);
