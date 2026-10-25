@@ -13,7 +13,6 @@ import {
 import { PrismaClient } from "../../generated/prisma/client";
 import prisma from "../config/datasource";
 import { logger } from "../config/logger";
-import VesselAlreadyExistsError from "../errors/vessel-already-exists.error";
 import AlarmEntity from "../entities/alarm.entity";
 import CrewEntity from "../entities/crew.entity";
 import Vessel from "../entities/vessel";
@@ -25,9 +24,9 @@ import VesselRepository from "../repositories/vessel.repository";
 import VesselCrewRepository from "../repositories/vessel-crew.repository";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
 import { getChannelNameByChatInputCommandInteraction } from "../utils/channel";
-import { validateDate } from "../utils/time";
 import { privateReply } from "../utils/reply";
 import Crew from "../entities/crew";
+import { parseAlarmTime, parseCanMidParticipation } from "../utils/parse";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -46,90 +45,50 @@ export default class VesselService {
 
     // 건조
     public async createVessel(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        const channelName = getChannelNameByChatInputCommandInteraction(interaction);
+        // 어선 엔티티 생성
         const channelId = interaction.channelId;
-        let alarmTime = interaction.options.getString("출항시간");
-        let canMidParticipation: boolean | string | null = interaction.options.getBoolean("중참가능여부");
-
-        if (alarmTime !== null) {
-            // 출항 시간에 대한 유효성 검증
-            const [valid, message] = validateDate(alarmTime);
-
-            if (!valid) {
-                return privateReply(
-                    interaction,
-                    message ?? "출항 시간이 유효하지 않습니다. HH:MM 형식으로 입력해주세요.",
-                );
-            }
-
-            alarmTime = alarmTime?.replaceAll(" ", "");
-            alarmTime = alarmTime?.replaceAll(":", "");
-        }
-
-        // 중참여부 조정
-        let cmp: boolean = true;
-        if (alarmTime !== null && canMidParticipation !== null) {
-            cmp = canMidParticipation;
-        }
-
-        canMidParticipation = cmp ? "Y" : "N";
-
+        const channelName = getChannelNameByChatInputCommandInteraction(interaction);
+        const alarmTime = parseAlarmTime(interaction.options.getString("출항시간"));
+        const canMidParticipation: string = parseCanMidParticipation(alarmTime, interaction.options.getBoolean("중참가능여부"));
         const vesselName = interaction.options.getString("선명")!;
         const vesselCapacity = interaction.options.getInteger("인원수")!;
         const vesselDescription = interaction.options.getString("설명") ?? this.DEFAULT_DESCRIPTION;
-        const newVessel: Vessel = new VesselEntity(
-            vesselName,
-            channelId,
-            vesselCapacity,
-            vesselDescription,
-            canMidParticipation,
-        );
+        const newVessel: Vessel = new VesselEntity(vesselName, channelId, vesselCapacity, vesselDescription, canMidParticipation);
 
         logger.debug("채널 명: " + channelName);
         logger.debug("어선 명: " + vesselName);
 
-        const captain = new CrewEntity(interaction.user.id);
+        // 어선 저장 트랜잭션
+        const savedVessel = await this.client.$transaction(async (tx: TransactionClient) => {
+            const txAlarmRepository = new AlarmRepository(tx);
+            const txCrewRepository = new CrewRepository(tx);
+            const txVesselRepository = new VesselRepository(tx);
+            const txVesselCrewRepository = new VesselCrewRepository(tx);
 
-        let alarm: AlarmEntity | null = null;
-        if (alarmTime !== null) {
-            alarm = new AlarmEntity(newVessel.name, newVessel.channelId, alarmTime, "Y");
-        }
+            // 1. 어선 저장
+            const v = await txVesselRepository.create(newVessel);
 
-        let savedVessel;
-        try {
-            // 트랜잭션
-            savedVessel = await this.client.$transaction(async (tx: TransactionClient) => {
-                const txAlarmRepository = new AlarmRepository(tx);
-                const txCrewRepository = new CrewRepository(tx);
-                const txVesselRepository = new VesselRepository(tx);
-                const txVesselCrewRepository = new VesselCrewRepository(tx);
+            // 2. 선원 저장
+            // 선원 엔티티 생성
+            const captain = new CrewEntity(interaction.user.id);
 
-                const v = await txVesselRepository.create(newVessel);
-                await txCrewRepository.save(captain);
+            // 선원 임시 저장
+            await txCrewRepository.save(captain);
 
-                // 3. VesselCrew 관계 저장 (선장으로 등록)
-                await txVesselCrewRepository.save(new VesselCrewEntity(v.name, v.channelId, captain.id, "선장"));
+            // VesselCrew 관계 저장 (임시 저장된 선원을 선장으로 등록)
+            await txVesselCrewRepository.save(new VesselCrewEntity(v.name, v.channelId, captain.id, "선장"));
 
-                // 4. 알람 저장 (선택적)
-                if (alarm !== null) {
-                    await txAlarmRepository.save(alarm);
-                }
-
-                return v;
-            });
-
-            logger.info(`${channelName}(${channelId})에서 '${vesselName}' 어선 생성됨`);
-        } catch (err: unknown) {
-            if (err instanceof VesselAlreadyExistsError) {
-                return privateReply(interaction, err.message);
+            // 3. 알람 저장 (선택적)
+            if (alarmTime !== null) {
+                // 알람 엔티티 생성
+                const alarm = new AlarmEntity(newVessel.name, newVessel.channelId, alarmTime, "Y");
+                await txAlarmRepository.save(alarm);
             }
 
-            if (err instanceof Error) {
-                logger.error("Error: " + err.message);
-            }
+            return v;
+        });
 
-            return privateReply(interaction, "어선 생성에 실패했습니다.");
-        }
+        logger.info(`${channelName}(${channelId})에서 '${vesselName}' 어선 생성됨`);
 
         const vesselEmbed = new EmbedBuilder()
             .setColor(0x0099ff)
@@ -137,14 +96,8 @@ export default class VesselService {
             .setDescription(savedVessel.description)
             .addFields(
                 { name: "인원수", value: `총 ${savedVessel.capacity}명` },
-                {
-                    name: "출항시간",
-                    value: alarmTime ? `${alarmTime.substring(0, 2)}:${alarmTime.substring(2, 4)}` : "설정되지 않음",
-                },
-                {
-                    name: "중도참여 가능여부",
-                    value: savedVessel.canMidParticipation === "Y" ? "가능" : "불가능",
-                },
+                { name: "출항시간", value: alarmTime ? `${alarmTime.substring(0, 2)}:${alarmTime.substring(2, 4)}` : "설정되지 않음" },
+                { name: "중도참여 가능여부", value: savedVessel.canMidParticipation === "Y" ? "가능" : "불가능" },
             )
             .setTimestamp(new Date())
             .setFooter({ text: "어선 생성 완료!" });
@@ -158,9 +111,7 @@ export default class VesselService {
     }
 
     // 승선
-    public async embark(
-        interaction: ChatInputCommandInteraction | MessageComponentInteraction,
-    ): Promise<InteractionResponse<boolean>> {
+    public async embark(interaction: ChatInputCommandInteraction | MessageComponentInteraction): Promise<InteractionResponse<boolean>> {
         const crewId = interaction.user.id;
         const crewName = interaction.user.username;
         const crewGlobalName = interaction.user?.displayName ?? interaction.user?.globalName ?? crewName;
@@ -200,10 +151,7 @@ export default class VesselService {
                 const nowHHMM = now.getHours() * 100 + now.getMinutes();
 
                 if (nowHHMM >= Number.parseInt(alarmTime.alarmTime)) {
-                    return privateReply(
-                        interaction as RepliableInteraction,
-                        "어선의 출항시간이 지나서 승선할 수 없습니다!",
-                    );
+                    return privateReply(interaction as RepliableInteraction, "어선의 출항시간이 지나서 승선할 수 없습니다!");
                 }
             }
         }
@@ -377,12 +325,7 @@ export default class VesselService {
     }
 
     // 모든 어선 조회
-    public async getAllVessels(
-        vesselsName: string,
-        channelId: string,
-        crewId?: string,
-        position?: string,
-    ): Promise<string[]> {
+    public async getAllVessels(vesselsName: string, channelId: string, crewId?: string, position?: string): Promise<string[]> {
         return await this.vesselRepository.findVesselsName(vesselsName, channelId, crewId, position);
     }
 }

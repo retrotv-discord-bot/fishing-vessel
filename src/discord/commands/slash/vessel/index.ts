@@ -1,12 +1,12 @@
-import {
-    AutocompleteInteraction,
-    ChatInputCommandInteraction,
-    InteractionResponse,
-    SlashCommandBuilder,
-} from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, InteractionResponse, SlashCommandBuilder } from "discord.js";
 
 import VesselService from "../../../../services/vessel.service";
 import SlashCommand from "../../../../templates/slash-command";
+import InvalidTimeFormat from "../../../../errors/invalid-time-format.error";
+import InvalidTimeRange from "../../../../errors/invalid-time-range.error";
+import PastTimeError from "../../../../errors/past-time.error";
+import VesselAlreadyExistsError from "../../../../errors/vessel-already-exists.error";
+import { privateReply } from "../../../../utils/reply";
 
 const vesselService = new VesselService();
 
@@ -20,21 +20,15 @@ export default new SlashCommand({
             subcommand
                 .setName("건조")
                 .setDescription("어선을 생성합니다.")
-                .addStringOption((option) =>
-                    option.setName("선명").setDescription("어선의 이름을 정합니다.").setRequired(true),
-                )
-                .addIntegerOption((option) =>
-                    option.setName("인원수").setDescription("어선에 탑승할 인원수를 정합니다.").setRequired(true),
-                )
+                .addStringOption((option) => option.setName("선명").setDescription("어선의 이름을 정합니다.").setRequired(true))
+                .addIntegerOption((option) => option.setName("인원수").setDescription("어선에 탑승할 인원수를 정합니다.").setRequired(true))
                 .addStringOption((option) =>
                     option.setName("설명").setDescription("어떤 어선인지에 대한 설명을 정합니다.").setRequired(false),
                 )
                 .addStringOption((option) =>
                     option
                         .setName("출항시간")
-                        .setDescription(
-                            "어선의 출항시간을 정합니다. 시간은 24시간 체계로 입력하세요. (ex. 14:30, 08:30, 9:00, 2300, 930)",
-                        )
+                        .setDescription("어선의 출항시간을 정합니다. 시간은 24시간 체계로 입력하세요. (ex. 14:30, 08:30, 9:00, 2300, 930)")
                         .setRequired(false)
                         .setMinLength(3)
                         .setMaxLength(5),
@@ -54,11 +48,7 @@ export default new SlashCommand({
                 .setName("침몰")
                 .setDescription("어선을 침몰시킵니다. 해당 어선의 선장만 사용할 수 있습니다!")
                 .addStringOption((option) =>
-                    option
-                        .setName("선명")
-                        .setDescription("침몰할 어선을 선택합니다.")
-                        .setRequired(true)
-                        .setAutocomplete(true),
+                    option.setName("선명").setDescription("침몰할 어선을 선택합니다.").setRequired(true).setAutocomplete(true),
                 ),
         )
 
@@ -69,11 +59,7 @@ export default new SlashCommand({
                 .setName("선원목록")
                 .setDescription("어선에 탑승한 선원 목록을 조회합니다.")
                 .addStringOption((option) =>
-                    option
-                        .setName("선명")
-                        .setDescription("어선의 이름을 입력하세요.")
-                        .setRequired(true)
-                        .setAutocomplete(true),
+                    option.setName("선명").setDescription("어선의 이름을 입력하세요.").setRequired(true).setAutocomplete(true),
                 ),
         )
 
@@ -82,11 +68,7 @@ export default new SlashCommand({
                 .setName("승선")
                 .setDescription("지정한 어선에 승선합니다.")
                 .addStringOption((option) =>
-                    option
-                        .setName("선명")
-                        .setDescription("승선할 어선을 선택합니다.")
-                        .setRequired(true)
-                        .setAutocomplete(true),
+                    option.setName("선명").setDescription("승선할 어선을 선택합니다.").setRequired(true).setAutocomplete(true),
                 ),
         )
 
@@ -95,11 +77,7 @@ export default new SlashCommand({
                 .setName("하선")
                 .setDescription("지정한 어선에서 하선합니다.")
                 .addStringOption((option) =>
-                    option
-                        .setName("선명")
-                        .setDescription("하선할 어선을 선택합니다.")
-                        .setRequired(true)
-                        .setAutocomplete(true),
+                    option.setName("선명").setDescription("하선할 어선을 선택합니다.").setRequired(true).setAutocomplete(true),
                 ),
         )
 
@@ -108,11 +86,7 @@ export default new SlashCommand({
                 .setName("호출")
                 .setDescription("어선에 탑승한 인원들에게 알림을 보냅니다.")
                 .addStringOption((option) =>
-                    option
-                        .setName("선명")
-                        .setDescription("호출할 어선을 선택합니다.")
-                        .setRequired(true)
-                        .setAutocomplete(true),
+                    option.setName("선명").setDescription("호출할 어선을 선택합니다.").setRequired(true).setAutocomplete(true),
                 ),
         )
 
@@ -149,7 +123,16 @@ export default new SlashCommand({
     async execute(interaction: ChatInputCommandInteraction): Promise<void | InteractionResponse<boolean>> {
         switch (interaction.options.getSubcommand()) {
             case "건조":
-                await vesselService.createVessel(interaction);
+                try {
+                    await vesselService.createVessel(interaction);
+                } catch (error: unknown) {
+                    const errors = [InvalidTimeFormat, InvalidTimeRange, PastTimeError, VesselAlreadyExistsError];
+                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선 생성에 실패했습니다.");
+                    }
+                }
                 break;
             case "침몰":
                 await vesselService.sinking(interaction);
