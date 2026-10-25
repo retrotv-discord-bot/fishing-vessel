@@ -27,6 +27,11 @@ import { getChannelNameByChatInputCommandInteraction } from "../utils/channel";
 import { privateReply } from "../utils/reply";
 import Crew from "../entities/crew";
 import { parseAlarmTime, parseCanMidParticipation } from "../utils/parse";
+import VesselNotExistsError from "../errors/vessel-not-exists.error";
+import { getVesselName } from "../utils/vessel";
+import { getUserDisplayName } from "../utils/user";
+import AlreadyEmbarkError from "../errors/already-embark.error";
+import OvercapacityError from "../errors/overcapacity.error";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -113,35 +118,26 @@ export default class VesselService {
     // 승선
     public async embark(interaction: ChatInputCommandInteraction | MessageComponentInteraction): Promise<InteractionResponse<boolean>> {
         const crewId = interaction.user.id;
-        const crewName = interaction.user.username;
-        const crewGlobalName = interaction.user?.displayName ?? interaction.user?.globalName ?? crewName;
+        const crewName = await getUserDisplayName(interaction, crewId);
         const channelId = interaction.channelId;
-        let vesselName;
-        if (interaction.isChatInputCommand()) {
-            vesselName = interaction.options.getString("선명");
-        } else if (interaction.isMessageComponent()) {
-            vesselName = interaction.customId.replace("embark_", "");
-        }
-
-        if (!vesselName) {
-            return privateReply(interaction as RepliableInteraction, "해당하는 어선명을 찾을 수 없습니다.");
-        }
+        const vesselName = getVesselName(interaction);
 
         // 어선 조회
         const vessel = await this.vesselRepository.findByNameAndChannelId(vesselName, channelId);
         if (vessel === null) {
-            return privateReply(interaction as RepliableInteraction, "해당 어선이 존재하지 않습니다.");
+            throw new VesselNotExistsError(vesselName);
         }
 
         // 어선 탑승여부 확인
-        const isExists = await this.crewRepository.isExistsOnVessel(crewId, vessel.name, vessel.channelId);
+        const isExists = await this.crewRepository.isExistsOnVessel(crewId, vesselName, channelId);
         if (isExists) {
-            return privateReply(interaction as RepliableInteraction, "이미 해당 어선에 탑승하고 있습니다.");
+            throw new AlreadyEmbarkError();
         }
 
-        const crews = await this.crewRepository.findCrewsOnVesselByVesselId(vessel.name, vessel.channelId);
+        // 정원 초과여부 확인
+        const crews = await this.crewRepository.findCrewsOnVesselByVesselId(vesselName, channelId);
         if (crews.length >= vessel.capacity) {
-            return privateReply(interaction as RepliableInteraction, "어선의 정원이 초과되었습니다.");
+            throw new OvercapacityError();
         }
 
         if (vessel.canMidParticipation === "N") {
@@ -160,8 +156,7 @@ export default class VesselService {
             logger.debug("===== 어선 승선 시작 =====");
             logger.debug(`유저 ID: ${crewId}`);
             logger.debug(`유저 이름: ${crewName}`);
-            logger.debug(`유저 글로벌 이름: ${crewGlobalName}`);
-            logger.debug(`어선 명: ${vessel.name}`);
+            logger.debug(`어선 명: ${vesselName}`);
             logger.debug("유저 역할: 선원");
 
             const newCrew: Crew = {
@@ -187,7 +182,7 @@ export default class VesselService {
         const vesselEmbed = new EmbedBuilder()
             .setColor(0x0099ff)
             .setTitle(vesselName)
-            .setFields({ name: "승선한 선원", value: `${crewGlobalName}` })
+            .setFields({ name: "승선한 선원", value: `${crewName}` })
             .setDescription("승선 완료!")
             .setTimestamp(new Date())
             .setFooter({ text: "어선 승선 완료!" });

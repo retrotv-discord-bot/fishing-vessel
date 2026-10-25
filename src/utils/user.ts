@@ -1,6 +1,9 @@
-import { ChatInputCommandInteraction } from "discord.js";
+import { ChatInputCommandInteraction, MessageComponentInteraction } from "discord.js";
 
-export async function getUserDisplayName(interaction: ChatInputCommandInteraction, id: string): Promise<string> {
+export async function getUserDisplayName(
+    interaction: ChatInputCommandInteraction | MessageComponentInteraction,
+    id: string,
+): Promise<string> {
     const member = await interaction.guild?.members.fetch(id).catch(() => null);
     return member?.displayName ?? "";
 
