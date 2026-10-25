@@ -30,8 +30,9 @@ import { parseAlarmTime, parseCanMidParticipation } from "../utils/parse";
 import VesselNotExistsError from "../errors/vessel-not-exists.error";
 import { getVesselName } from "../utils/vessel";
 import { getUserDisplayName } from "../utils/user";
-import AlreadyEmbarkError from "../errors/already-embark.error";
+import AlreadyEmbarkedError from "../errors/already-embarked.error";
 import OvercapacityError from "../errors/overcapacity.error";
+import EmbarkNotAllowError from "../errors/embark-not-allow.error";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -131,7 +132,7 @@ export default class VesselService {
         // 어선 탑승여부 확인
         const isExists = await this.crewRepository.isExistsOnVessel(crewId, vesselName, channelId);
         if (isExists) {
-            throw new AlreadyEmbarkError();
+            throw new AlreadyEmbarkedError();
         }
 
         // 정원 초과여부 확인
@@ -147,37 +148,27 @@ export default class VesselService {
                 const nowHHMM = now.getHours() * 100 + now.getMinutes();
 
                 if (nowHHMM >= Number.parseInt(alarmTime.alarmTime)) {
-                    return privateReply(interaction as RepliableInteraction, "어선의 출항시간이 지나서 승선할 수 없습니다!");
+                    throw new EmbarkNotAllowError("어선의 출항시간이 지나서 승선할 수 없습니다.");
                 }
             }
         }
 
-        try {
-            logger.debug("===== 어선 승선 시작 =====");
-            logger.debug(`유저 ID: ${crewId}`);
-            logger.debug(`유저 이름: ${crewName}`);
-            logger.debug(`어선 명: ${vesselName}`);
-            logger.debug("유저 역할: 선원");
+        logger.debug("===== 어선 승선 시작 =====");
+        logger.debug(`유저 ID: ${crewId}`);
+        logger.debug(`유저 이름: ${crewName}`);
+        logger.debug(`어선 명: ${vesselName}`);
+        logger.debug("유저 역할: 선원");
 
-            const newCrew: Crew = {
-                id: crewId,
-            };
+        const newCrew: Crew = {
+            id: crewId,
+        };
 
-            await this.client.$transaction(async (tx: TransactionClient) => {
-                const txCrewRepository = new CrewRepository(tx);
-                await txCrewRepository.embarkCrew(newCrew, vessel.name, vessel.channelId);
-            });
+        await this.client.$transaction(async (tx: TransactionClient) => {
+            const txCrewRepository = new CrewRepository(tx);
+            await txCrewRepository.embarkCrew(newCrew, vessel.name, vessel.channelId);
+        });
 
-            logger.debug("===== 어선 승선 완료 =====");
-        } catch (err) {
-            if (err instanceof Error) {
-                logger.error("Error: " + err.message);
-            }
-
-            return privateReply(interaction as RepliableInteraction, "어선 승선에 실패했습니다.");
-        } finally {
-            await this.client.$disconnect();
-        }
+        logger.debug("===== 어선 승선 완료 =====");
 
         const vesselEmbed = new EmbedBuilder()
             .setColor(0x0099ff)

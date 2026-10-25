@@ -7,6 +7,9 @@ import InvalidTimeRange from "../../../../errors/invalid-time-range.error";
 import PastTimeError from "../../../../errors/past-time.error";
 import VesselAlreadyExistsError from "../../../../errors/vessel-already-exists.error";
 import { privateReply } from "../../../../utils/reply";
+import AlreadyEmbarkedError from "../../../../errors/already-embarked.error";
+import OvercapacityError from "../../../../errors/overcapacity.error";
+import VesselNotExistsError from "../../../../errors/vessel-not-exists.error";
 
 const vesselService = new VesselService();
 
@@ -144,7 +147,16 @@ export default new SlashCommand({
                 await vesselService.searchCrewsInVessel(interaction);
                 break;
             case "승선":
-                await vesselService.embark(interaction);
+                try {
+                    await vesselService.embark(interaction);
+                } catch (error: unknown) {
+                    const errors = [VesselNotExistsError, AlreadyEmbarkedError, OvercapacityError];
+                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선 생성에 실패했습니다.");
+                    }
+                }
                 break;
             case "호출":
                 await vesselService.callingSailor(interaction);
