@@ -1,11 +1,12 @@
-import {
-    AutocompleteInteraction,
-    BaseInteraction,
-    ChatInputCommandInteraction,
-    Events,
-    MessageFlags,
-} from "discord.js";
+import { AutocompleteInteraction, BaseInteraction, ButtonInteraction, ChatInputCommandInteraction, Events, MessageFlags } from "discord.js";
 import Event from "../../../templates/event";
+import VesselService from "../../../services/vessel.service";
+import AlreadyEmbarkedError from "../../../errors/already-embarked.error";
+import OvercapacityError from "../../../errors/overcapacity.error";
+import VesselNotExistsError from "../../../errors/vessel-not-exists.error";
+import { privateReply } from "../../../utils/reply";
+
+const vesselService = new VesselService();
 
 /**
  * 봇이 상호작용을 수신했을 때 발생하는 이벤트
@@ -45,6 +46,8 @@ export default new Event({
                     });
                 }
             }
+        } else if (interaction.isButton()) {
+            await buttonCommand(interaction);
         }
     },
 });
@@ -91,5 +94,21 @@ async function autocomplete(interaction: AutocompleteInteraction) {
         }
     } catch (error) {
         console.error(error);
+    }
+}
+
+async function buttonCommand(interaction: ButtonInteraction) {
+    const buttonCustomId = interaction.customId;
+    if (buttonCustomId.startsWith("embark_")) {
+        try {
+            await vesselService.embark(interaction);
+        } catch (error: unknown) {
+            const errors = [VesselNotExistsError, AlreadyEmbarkedError, OvercapacityError];
+            if (error instanceof Error && errors.some((E) => error instanceof E)) {
+                return privateReply(interaction, error.message);
+            } else {
+                return privateReply(interaction, "어선 승선에 실패했습니다.");
+            }
+        }
     }
 }

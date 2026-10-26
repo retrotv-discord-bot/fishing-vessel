@@ -129,86 +129,54 @@ export default new SlashCommand({
     async execute(interaction: ChatInputCommandInteraction): Promise<void | InteractionResponse<boolean>> {
         switch (interaction.options.getSubcommand()) {
             case "건조":
-                try {
-                    await vesselService.createVessel(interaction);
-                } catch (error: unknown) {
-                    const errors = [InvalidTimeFormat, InvalidTimeRange, PastTimeError, VesselAlreadyExistsError];
-                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선 생성에 실패했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.createVessel(i),
+                    [InvalidTimeFormat, InvalidTimeRange, PastTimeError, VesselAlreadyExistsError],
+                    "어선 생성에 실패했습니다.",
+                );
             case "침몰":
-                try {
-                    await vesselService.sinking(interaction);
-                } catch (error: unknown) {
-                    const errors = [VesselNotExistsError, SinkingNotAllowError];
-                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선 침몰에 실패했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.sinking(i),
+                    [VesselNotExistsError, SinkingNotAllowError],
+                    "어선 침몰에 실패했습니다.",
+                );
             case "목록":
-                try {
-                    await vesselService.searchVessels(interaction);
-                } catch (error: unknown) {
-                    if (error instanceof VesselNotExistsError) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선 목록 조회에 실패했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.searchVessels(i),
+                    VesselNotExistsError,
+                    "어선 목록 조회에 실패했습니다.",
+                );
             case "선원목록":
-                try {
-                    await vesselService.searchCrewsInVessel(interaction);
-                } catch (error: unknown) {
-                    if (error instanceof VesselNotExistsError) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선에 탑승한 선원목록 조회에 실패했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.searchCrewsInVessel(i),
+                    VesselNotExistsError,
+                    "어선 승선에 실패했습니다.",
+                );
             case "승선":
-                try {
-                    await vesselService.embark(interaction);
-                } catch (error: unknown) {
-                    const errors = [VesselNotExistsError, AlreadyEmbarkedError, OvercapacityError];
-                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선 승선에 실패했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.embark(i),
+                    [VesselNotExistsError, AlreadyEmbarkedError, OvercapacityError],
+                    "어선 승선에 실패했습니다.",
+                );
             case "호출":
-                try {
-                    await vesselService.callingSailor(interaction);
-                } catch (error: unknown) {
-                    if (error instanceof MessageSendError) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선에 탑승한 선원들을 호출하지 못했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.callingSailor(i),
+                    MessageSendError,
+                    "어선에 탑승한 선원들을 호출하지 못했습니다.",
+                );
             case "하선":
-                try {
-                    await vesselService.disembark(interaction);
-                } catch (error: unknown) {
-                    const errors = [NotEmbarkedError, MessageSendError, VesselNotExistsError];
-                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
-                        return privateReply(interaction, error.message);
-                    } else {
-                        return privateReply(interaction, "어선 승선에 실패했습니다.");
-                    }
-                }
-                break;
+                return callService(
+                    interaction,
+                    (i) => vesselService.disembark(i),
+                    [NotEmbarkedError, MessageSendError, VesselNotExistsError],
+                    "어선 하선에 실패했습니다.",
+                );
             case "여담":
                 return interaction.reply({
                     embeds: [
@@ -225,3 +193,22 @@ export default new SlashCommand({
         }
     },
 });
+
+type ErrorType = new (...args: never[]) => Error;
+async function callService(
+    interaction: ChatInputCommandInteraction,
+    fn: (interaction: ChatInputCommandInteraction) => Promise<InteractionResponse<boolean>>,
+    errorTypes: ErrorType | ErrorType[],
+    defaultErrorMessage: string,
+): Promise<void | InteractionResponse<boolean>> {
+    try {
+        await fn(interaction);
+    } catch (error: unknown) {
+        const errors = Array.isArray(errorTypes) ? errorTypes : [errorTypes];
+        if (error instanceof Error && errors.some((E) => error instanceof E)) {
+            return privateReply(interaction, error.message);
+        } else {
+            return privateReply(interaction, defaultErrorMessage);
+        }
+    }
+}
