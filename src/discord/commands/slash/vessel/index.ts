@@ -129,54 +129,19 @@ export default new SlashCommand({
     async execute(interaction: ChatInputCommandInteraction): Promise<void | InteractionResponse<boolean>> {
         switch (interaction.options.getSubcommand()) {
             case "건조":
-                return callService(
-                    interaction,
-                    (i) => vesselService.createVessel(i),
-                    [InvalidTimeFormat, InvalidTimeRange, PastTimeError, VesselAlreadyExistsError],
-                    "어선 생성에 실패했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.createVessel(i), "어선 생성에 실패했습니다.");
             case "침몰":
-                return callService(
-                    interaction,
-                    (i) => vesselService.sinking(i),
-                    [VesselNotExistsError, SinkingNotAllowError],
-                    "어선 침몰에 실패했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.sinking(i), "어선 침몰에 실패했습니다.");
             case "목록":
-                return callService(
-                    interaction,
-                    (i) => vesselService.searchVessels(i),
-                    VesselNotExistsError,
-                    "어선 목록 조회에 실패했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.searchVessels(i), "어선 목록 조회에 실패했습니다.");
             case "선원목록":
-                return callService(
-                    interaction,
-                    (i) => vesselService.searchCrewsInVessel(i),
-                    VesselNotExistsError,
-                    "어선 승선에 실패했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.searchCrewsInVessel(i), "어선 승선에 실패했습니다.");
             case "승선":
-                return callService(
-                    interaction,
-                    (i) => vesselService.embark(i),
-                    [VesselNotExistsError, AlreadyEmbarkedError, OvercapacityError],
-                    "어선 승선에 실패했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.embark(i), "어선 승선에 실패했습니다.");
             case "호출":
-                return callService(
-                    interaction,
-                    (i) => vesselService.callingSailor(i),
-                    MessageSendError,
-                    "어선에 탑승한 선원들을 호출하지 못했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.callingSailor(i), "어선에 탑승한 선원들을 호출하지 못했습니다.");
             case "하선":
-                return callService(
-                    interaction,
-                    (i) => vesselService.disembark(i),
-                    [NotEmbarkedError, MessageSendError, VesselNotExistsError],
-                    "어선 하선에 실패했습니다.",
-                );
+                return callService(interaction, (i) => vesselService.disembark(i), "어선 하선에 실패했습니다.");
             case "여담":
                 return interaction.reply({
                     embeds: [
@@ -194,17 +159,26 @@ export default new SlashCommand({
     },
 });
 
-type ErrorType = new (...args: never[]) => Error;
 async function callService(
     interaction: ChatInputCommandInteraction,
     fn: (interaction: ChatInputCommandInteraction) => Promise<InteractionResponse<boolean>>,
-    errorTypes: ErrorType | ErrorType[],
     defaultErrorMessage: string,
 ): Promise<void | InteractionResponse<boolean>> {
     try {
         await fn(interaction);
     } catch (error: unknown) {
-        const errors = Array.isArray(errorTypes) ? errorTypes : [errorTypes];
+        const errors = [
+            AlreadyEmbarkedError,
+            InvalidTimeFormat,
+            InvalidTimeRange,
+            PastTimeError,
+            VesselAlreadyExistsError,
+            VesselNotExistsError,
+            SinkingNotAllowError,
+            OvercapacityError,
+            NotEmbarkedError,
+            MessageSendError,
+        ];
         if (error instanceof Error && errors.some((E) => error instanceof E)) {
             return privateReply(interaction, error.message);
         } else {
