@@ -33,6 +33,7 @@ import OvercapacityError from "../errors/overcapacity.error";
 import EmbarkNotAllowError from "../errors/embark-not-allow.error";
 import NotEmbarkedError from "../errors/not-embarked.error";
 import MessageSendError from "../errors/message-send.error";
+import SinkingNotAllowError from "../errors/sinking-not-allow.error";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -279,7 +280,37 @@ export default class VesselService {
 
     // 침몰
     public async sinking(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+        const clientId = interaction.user.id;
+        const vesselName = interaction.options.getString("선명")!;
+        const channelId = interaction.channelId;
+
+        // 어선 조회
+        const vessel = await this.vesselRepository.findByNameAndChannelId(vesselName, channelId);
+        if (vessel === null) {
+            throw new VesselNotExistsError();
+        }
+
+        // 침몰 요청을 보낸 유저가 선장인지 확인
+        if (!(await this.crewRepository.isCaptain(clientId, vesselName, channelId))) {
+            throw new SinkingNotAllowError("어선의 선장만 침몰시킬 수 있습니다.");
+        }
+
+        // 어선 삭제
+        await this.client.$transaction(async (tx: TransactionClient) => {
+            const txVesselRepository = new VesselRepository(tx);
+            await txVesselRepository.deleteVessel(vesselName, channelId);
+        });
+
+        logger.info("어선이 성공적으로 침몰되었습니다.");
+
+        const vesselEmbed = new EmbedBuilder()
+            .setColor(0x0099ff)
+            .setTitle(vesselName)
+            .setDescription("어선이 침몰되었습니다!")
+            .setTimestamp(new Date())
+            .setFooter({ text: "꼬르륵!" });
+
+        return interaction.reply({ embeds: [vesselEmbed] });
     }
 
     // 호출

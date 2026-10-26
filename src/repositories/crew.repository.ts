@@ -95,22 +95,17 @@ export default class CrewRepository {
         });
     }
 
-    public async isCaptain(crewId: string, vesselId: string): Promise<boolean> {
-        return (
-            (await this.client.crews.findUnique({
-                where: {
-                    id: crewId,
-                },
-                include: {
-                    vessels: {
-                        where: {
-                            vesselId: vesselId,
-                            position: "선장",
-                        },
-                    },
-                },
-            })) !== null
-        );
+    public async isCaptain(crewId: string, vesselName: string, channelId: string): Promise<boolean> {
+        const captain = await this.client.vesselsCrews.findFirst({
+            where: {
+                crewId: crewId,
+                vesselName: vesselName,
+                vesselChannelId: channelId,
+                position: "선장",
+            },
+        });
+
+        return captain !== null;
     }
 
     public async isExistsOnVessel(crewId: string, vesselName: string, vesselChannelId: string): Promise<boolean> {
