@@ -11,3 +11,11 @@ export async function getUserDisplayName(
     // const user = await client.users.fetch(userId);
     // const name = member?.displayName ?? user.displayName;
 }
+
+// 여러 유저의 표시 이름을 병렬로 조회 (입력 순서 유지)
+export async function getUsersDisplayName(
+    interaction: ChatInputCommandInteraction | MessageComponentInteraction,
+    ids: string[],
+): Promise<string[]> {
+    return await Promise.all(ids.map((id) => getUserDisplayName(interaction, id)));
+}

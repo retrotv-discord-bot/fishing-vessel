@@ -10,6 +10,9 @@ import { privateReply } from "../../../../utils/reply";
 import AlreadyEmbarkedError from "../../../../errors/already-embarked.error";
 import OvercapacityError from "../../../../errors/overcapacity.error";
 import VesselNotExistsError from "../../../../errors/vessel-not-exists.error";
+import SinkingNotAllowError from "../../../../errors/sinking-not-allow.error";
+import MessageSendError from "../../../../errors/message-send.error";
+import NotEmbarkedError from "../../../../errors/not-embarked.error";
 
 const vesselService = new VesselService();
 
@@ -138,13 +141,38 @@ export default new SlashCommand({
                 }
                 break;
             case "침몰":
-                await vesselService.sinking(interaction);
+                try {
+                    await vesselService.sinking(interaction);
+                } catch (error: unknown) {
+                    const errors = [VesselNotExistsError, SinkingNotAllowError];
+                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선 침몰에 실패했습니다.");
+                    }
+                }
                 break;
             case "목록":
-                await vesselService.searchVessels(interaction);
+                try {
+                    await vesselService.searchVessels(interaction);
+                } catch (error: unknown) {
+                    if (error instanceof VesselNotExistsError) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선 목록 조회에 실패했습니다.");
+                    }
+                }
                 break;
             case "선원목록":
-                await vesselService.searchCrewsInVessel(interaction);
+                try {
+                    await vesselService.searchCrewsInVessel(interaction);
+                } catch (error: unknown) {
+                    if (error instanceof VesselNotExistsError) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선에 탑승한 선원목록 조회에 실패했습니다.");
+                    }
+                }
                 break;
             case "승선":
                 try {
@@ -154,15 +182,32 @@ export default new SlashCommand({
                     if (error instanceof Error && errors.some((E) => error instanceof E)) {
                         return privateReply(interaction, error.message);
                     } else {
-                        return privateReply(interaction, "어선 생성에 실패했습니다.");
+                        return privateReply(interaction, "어선 승선에 실패했습니다.");
                     }
                 }
                 break;
             case "호출":
-                await vesselService.callingSailor(interaction);
+                try {
+                    await vesselService.callingSailor(interaction);
+                } catch (error: unknown) {
+                    if (error instanceof MessageSendError) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선에 탑승한 선원들을 호출하지 못했습니다.");
+                    }
+                }
                 break;
             case "하선":
-                await vesselService.disembark(interaction);
+                try {
+                    await vesselService.disembark(interaction);
+                } catch (error: unknown) {
+                    const errors = [NotEmbarkedError, MessageSendError, VesselNotExistsError];
+                    if (error instanceof Error && errors.some((E) => error instanceof E)) {
+                        return privateReply(interaction, error.message);
+                    } else {
+                        return privateReply(interaction, "어선 승선에 실패했습니다.");
+                    }
+                }
                 break;
             case "여담":
                 return interaction.reply({

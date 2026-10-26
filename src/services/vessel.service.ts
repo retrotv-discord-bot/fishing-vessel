@@ -27,13 +27,14 @@ import Crew from "../entities/crew";
 import { parseAlarmTime, parseCanMidParticipation } from "../utils/parse";
 import VesselNotExistsError from "../errors/vessel-not-exists.error";
 import { getVesselName } from "../utils/vessel";
-import { getUserDisplayName } from "../utils/user";
+import { getUserDisplayName, getUsersDisplayName } from "../utils/user";
 import AlreadyEmbarkedError from "../errors/already-embarked.error";
 import OvercapacityError from "../errors/overcapacity.error";
 import EmbarkNotAllowError from "../errors/embark-not-allow.error";
 import NotEmbarkedError from "../errors/not-embarked.error";
 import MessageSendError from "../errors/message-send.error";
 import SinkingNotAllowError from "../errors/sinking-not-allow.error";
+import { privateReply } from "../utils/reply";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -315,17 +316,67 @@ export default class VesselService {
 
     // 호출
     public async callingSailor(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+        const channel = interaction.channel;
+        const channelId = interaction.channelId;
+        const vesselName = interaction.options.getString("선명")!;
+
+        // 어선에 탑승한 선원들 조회
+        const crews = await this.crewRepository.findCrewsOnVessel(vesselName, channelId);
+        const crewIds = crews.map((crew) => crew.id);
+        let userMentions = crewIds.map((userId) => `<@${userId}>`).join(", ");
+        userMentions = userMentions + ` 선원들! 지금 당장 ${vesselName} 어선에 탑승하시오!`;
+
+        if (!channel?.isTextBased() || !("send" in channel)) {
+            throw new MessageSendError();
+        }
+        await channel.send(userMentions);
+
+        return privateReply(interaction, "어선에 탑승한 인원들에게 알림을 보냈습니다.");
     }
 
-    // 어선 조회
+    // 어선 목록 조회
     public async searchVessels(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+        const channelId = interaction.channelId;
+        const vessels = await this.vesselRepository.findByChannelId(channelId);
+        if (vessels.length === 0) {
+            throw new VesselNotExistsError();
+        }
+
+        const vesselEmbeds = vessels.map((vessel) =>
+            new EmbedBuilder()
+                .setColor(0x0099ff)
+                .setTitle(vessel.name)
+                .setDescription(vessel.description)
+                .addFields({ name: "인원수", value: `총 ${vessel.capacity}명` }),
+        );
+
+        return privateReply(interaction, vesselEmbeds);
     }
 
     // 어선에 탑승한 선원 조회
     public async searchCrewsInVessel(interaction: ChatInputCommandInteraction): Promise<InteractionResponse<boolean>> {
-        throw Error();
+        const vesselName = interaction.options.getString("선명")!;
+        const channelId = interaction.channelId;
+
+        // 어선 조회
+        const vessel = await this.vesselRepository.findByNameAndChannelId(vesselName, channelId);
+        if (vessel === null) {
+            throw new VesselNotExistsError();
+        }
+
+        // 어선에 탑승한 선원들 조회
+        const crews = await this.crewRepository.findCrewsOnVesselByVesselId(vesselName, channelId);
+        const crewsName = await getUsersDisplayName(
+            interaction,
+            crews.map((crew) => crew.id),
+        );
+        const crewMentions = crewsName.map((crewName) => `${crewName}`).join("\n");
+        const crewsEmbed = new EmbedBuilder().setColor(0x0099ff).setTitle(vesselName).setDescription("선원목록").addFields({
+            name: "탑승인원",
+            value: crewMentions,
+        });
+
+        return privateReply(interaction, [crewsEmbed]);
     }
 
     // 모든 어선 조회
