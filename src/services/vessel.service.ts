@@ -7,7 +7,6 @@ import {
     InteractionResponse,
     MessageComponentInteraction,
     MessageFlags,
-    RepliableInteraction,
 } from "discord.js";
 
 import { PrismaClient } from "../../generated/prisma/client";
@@ -24,7 +23,6 @@ import VesselRepository from "../repositories/vessel.repository";
 import VesselCrewRepository from "../repositories/vessel-crew.repository";
 import { TransactionClient } from "../../generated/prisma/internal/prismaNamespace";
 import { getChannelNameByChatInputCommandInteraction } from "../utils/channel";
-import { privateReply } from "../utils/reply";
 import Crew from "../entities/crew";
 import { parseAlarmTime, parseCanMidParticipation } from "../utils/parse";
 import VesselNotExistsError from "../errors/vessel-not-exists.error";
@@ -33,6 +31,8 @@ import { getUserDisplayName } from "../utils/user";
 import AlreadyEmbarkedError from "../errors/already-embarked.error";
 import OvercapacityError from "../errors/overcapacity.error";
 import EmbarkNotAllowError from "../errors/embark-not-allow.error";
+import NotEmbarkedError from "../errors/not-embarked.error";
+import MessageSendError from "../errors/message-send.error";
 
 export default class VesselService {
     private readonly DEFAULT_DESCRIPTION = "설명이 없습니다.";
@@ -194,75 +194,62 @@ export default class VesselService {
         const vesselName = interaction.options.getString("선명")!;
         const channelId = interaction.channelId;
 
+        logger.trace(`하선 명령어가 호출된 채널: ${channelName}`);
+
         const crew = await this.crewRepository.findCrewOnVesselById(vesselName, channelId, crewId);
         if (crew === null) {
-            return privateReply(interaction, "해당 어선에 탑승하고 있지 않습니다.");
+            throw new NotEmbarkedError();
         }
 
         let isCaptain = false;
-        try {
-            await this.client.$transaction(async (tx: TransactionClient) => {
-                const txAlarmRepository = new AlarmRepository(tx);
-                const txCrewRepository = new CrewRepository(tx);
-                const txVesselRepository = new VesselRepository(tx);
-                const txVesselCrewRepository = new VesselCrewRepository(tx);
+        await this.client.$transaction(async (tx: TransactionClient) => {
+            const txAlarmRepository = new AlarmRepository(tx);
+            const txCrewRepository = new CrewRepository(tx);
+            const txVesselRepository = new VesselRepository(tx);
+            const txVesselCrewRepository = new VesselCrewRepository(tx);
 
-                const vessel = await txVesselRepository.findByNameAndChannelId(vesselName, channelId);
-                if (vessel === null) {
-                    return privateReply(interaction, "해당 어선이 존재하지 않습니다.");
-                }
-
-                // 어선 하선
-                await txVesselCrewRepository.delete(vessel.name, vessel.channelId, crew.id);
-
-                logger.debug(`crew.id: ${crew.id}`);
-                logger.debug(`crew.vessels[0] crewId: ${crew.vessels[0]?.crewId}`);
-                logger.debug(`crew.vessels[0] vesselName: ${crew.vessels[0]?.vesselName}`);
-                logger.debug(`crew.vessels[0] position: ${crew.vessels[0]?.position}`);
-
-                if (crew.vessels[0]?.position === "선장") {
-                    logger.debug("현재 유저의 역할이 선장입니다. 어선도 같이 침몰합니다.");
-
-                    isCaptain = true;
-
-                    // 모든 선원 삭제
-                    const allCrews = await txCrewRepository.findMany(vesselName, channelId);
-                    if (allCrews.length > 0) {
-                        await txVesselCrewRepository.deleteMany(allCrews);
-                    }
-
-                    logger.debug("모든 유저를 삭제했습니다.");
-
-                    // 알람 삭제
-                    const allAlarms = await txAlarmRepository.findMany(vesselName, channelId);
-                    if (allAlarms) {
-                        const deleteConditions = allAlarms.map((alarm) => ({
-                            vesselName: alarm.vesselName,
-                            vesselChannelId: alarm.vesselChannelId,
-                            alarmTime: alarm.alarmTime,
-                        }));
-
-                        // deleteMany를 사용하여 삭제
-                        await txAlarmRepository.deleteMany(deleteConditions);
-                    }
-
-                    logger.debug("모든 알람을 삭제했습니다.");
-
-                    // 어선 삭제
-                    await txVesselRepository.deleteMany(vesselName, channelId);
-
-                    logger.debug("어선을 삭제했습니다.");
-                }
-            });
-        } catch (err) {
-            if (err instanceof Error) {
-                logger.error("Error: " + err.message);
+            const vessel = await txVesselRepository.findByNameAndChannelId(vesselName, channelId);
+            if (vessel === null) {
+                throw new VesselNotExistsError();
             }
 
-            return privateReply(interaction, "어선 하선에 실패했습니다.");
-        } finally {
-            await this.client.$disconnect();
-        }
+            // 어선 하선
+            await txVesselCrewRepository.delete(vesselName, channelId, crewId);
+
+            logger.debug(`crew.id: ${crewId}`);
+            logger.debug(`crew.vessels[0] crewId: ${crew.vessels[0]?.crewId}`);
+            logger.debug(`crew.vessels[0] vesselName: ${crew.vessels[0]?.vesselName}`);
+            logger.debug(`crew.vessels[0] position: ${crew.vessels[0]?.position}`);
+
+            if (crew.vessels[0]?.position === "선장") {
+                isCaptain = true;
+
+                // 모든 선원 삭제
+                const allCrews = await txCrewRepository.findMany(vesselName, channelId);
+                if (allCrews.length > 0) {
+                    await txVesselCrewRepository.deleteMany(allCrews);
+                    logger.debug("해당 어선의 모든 유저를 삭제했습니다.");
+                }
+
+                // 알람 삭제
+                const allAlarms = await txAlarmRepository.findMany(vesselName, channelId);
+                if (allAlarms) {
+                    const deleteConditions = allAlarms.map((alarm) => ({
+                        vesselName: alarm.vesselName,
+                        vesselChannelId: alarm.vesselChannelId,
+                        alarmTime: alarm.alarmTime,
+                    }));
+
+                    // deleteMany를 사용하여 삭제
+                    await txAlarmRepository.deleteMany(deleteConditions);
+                    logger.debug("모든 알람을 삭제했습니다.");
+                }
+
+                // 어선 삭제
+                await txVesselRepository.deleteMany(vesselName, channelId);
+                logger.debug("현재 유저의 역할이 선장입니다. 어선도 같이 침몰합니다.");
+            }
+        });
 
         const vesselEmbed = new EmbedBuilder()
             .setColor(0x0099ff)
@@ -281,7 +268,7 @@ export default class VesselService {
                 .setFooter({ text: "꼬르륵!" });
 
             if (!interaction.channel?.isTextBased() || !("send" in interaction.channel)) {
-                return privateReply(interaction, "채널에 메시지를 보낼 수 없습니다.");
+                throw new MessageSendError();
             }
 
             await interaction.channel.send({ embeds: [vesselEmbed] });
