@@ -109,10 +109,10 @@ const alarmCron = new Cron("* * * * *", { timezone: "Asia/Seoul", name: "Alarm" 
 logger.debug(alarmCron.name, " cron started");
 
 // 매일 자정마다 7일 이상된 어선을 삭제하는 스케쥴러
-// const cleanOldVesselsCron = new Cron("0 0 * * *", { timezone: "Asia/Seoul", name: "CleanOldVessels" }, async () => {
-//     await vesselService.cleanOldVessels();
-// });
-// logger.debug(cleanOldVesselsCron.name, " cron started");
+const cleanOldVesselsCron = new Cron("0 0 * * *", { timezone: "Asia/Seoul", name: "CleanOldVessels" }, async () => {
+    await vesselService.cleanOldVessel();
+});
+logger.debug(cleanOldVesselsCron.name, " cron started");
 
 // 봇 로그인
 // Log in to the bot

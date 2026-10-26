@@ -383,4 +383,44 @@ export default class VesselService {
     public async getAllVessels(vesselsName: string, channelId: string, crewId?: string, position?: string): Promise<string[]> {
         return await this.vesselRepository.findVesselsName(vesselsName, channelId, crewId, position);
     }
+
+    // 오래된 어선 정리
+    public async cleanOldVessel(): Promise<void> {
+        // 7일 이상 된 vessels를 삭제
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        await this.client.$transaction(async (tx: TransactionClient) => {
+            const txVesselRepository = new VesselRepository(tx);
+            const txVesselCrewRepository = new VesselCrewRepository(tx);
+            const txAlarmRepository = new AlarmRepository(tx);
+
+            const vessels = await txVesselRepository.findSevenDaysOldVessels();
+            const results = await Promise.allSettled(
+                vessels.map(async (vessel) => {
+                    await txVesselCrewRepository.delete(vessel.name, vessel.channelId);
+
+                    const allAlarms = await txAlarmRepository.findMany(vessel.name, vessel.channelId);
+                    if (allAlarms) {
+                        const deleteConditions = allAlarms.map((alarm) => ({
+                            vesselName: alarm.vesselName,
+                            vesselChannelId: alarm.vesselChannelId,
+                            alarmTime: alarm.alarmTime,
+                        }));
+
+                        // deleteMany를 사용하여 삭제
+                        await txAlarmRepository.deleteMany(deleteConditions);
+                    }
+
+                    await txVesselRepository.deleteAll(vessels);
+                }),
+            );
+
+            results.forEach((r, i) => {
+                if (r.status === "rejected") logger.error(`${vessels[i].name} 어선 삭제 실패: ${r.reason}`);
+            });
+        });
+
+        logger.info("오래된 어선이 성공적으로 정리되었습니다.");
+    }
 }
