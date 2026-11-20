@@ -1,0 +1,14 @@
+node_modules
+generated
+.git
+.vscode
+.idea
+.env
+.env.*
+*.log
+logs
+prisma/bot.db
+prisma/bot.db-journal
+Dockerfile
+.dockerignore
+create-dockerfile.sh
