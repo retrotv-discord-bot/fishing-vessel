@@ -1,3 +1,7 @@
+# podman-compose 가 pod 를 만들지 않도록 설정 (pod 와 userns_mode 는 함께 쓸 수 없음)
+x-podman:
+  in_pod: false
+
 services:
   bot:
     build: .
