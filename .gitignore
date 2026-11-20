@@ -35,8 +35,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Prisma
 prisma/migrations/
-prisma/bot.db
-prisma/bot.db-journal
+prisma/*.db
+prisma/*.db-journal
 
 # Prisma Client (generated)
 generated/

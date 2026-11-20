@@ -13,7 +13,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-# Prisma Client 생성 (generated/prisma)
+# Prisma Client 생성 (generated/prisma). 실제 DB 경로는 실행 시 .env 로 전달됩니다.
 RUN DATABASE_URL="file:/tmp/build.db" npx prisma generate
 
 # ---------- runtime stage ----------
@@ -21,13 +21,10 @@ FROM docker.io/library/node:24-bookworm-slim
 WORKDIR /app
 
 ENV NODE_ENV=prod \
-    DATABASE_URL=file:/app/data/bot.db
+    HOME=/tmp
 
 COPY --from=build --chown=node:node /app /app
-RUN mkdir -p /app/data && chown node:node /app/data
-
 USER node
-VOLUME ["/app/data"]
 
 # 시작 시 스키마를 DB에 반영한 뒤 봇 실행 (pm2 대신 podman 재시작 정책 사용)
 CMD ["sh", "-c", "npx prisma db push && exec npx ts-node index.ts"]
