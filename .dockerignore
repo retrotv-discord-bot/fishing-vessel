@@ -15,3 +15,4 @@ Dockerfile
 .dockerignore
 compose.yaml
 create-dockerfile.sh
+setup-autostart.sh
