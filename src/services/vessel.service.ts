@@ -206,7 +206,6 @@ export default class VesselService {
         let isCaptain = false;
         await this.client.$transaction(async (tx: TransactionClient) => {
             const txAlarmRepository = new AlarmRepository(tx);
-            const txCrewRepository = new CrewRepository(tx);
             const txVesselRepository = new VesselRepository(tx);
             const txVesselCrewRepository = new VesselCrewRepository(tx);
 
@@ -226,12 +225,9 @@ export default class VesselService {
             if (crew.vessels[0]?.position === "선장") {
                 isCaptain = true;
 
-                // 모든 선원 삭제
-                const allCrews = await txCrewRepository.findMany(vesselName, channelId);
-                if (allCrews.length > 0) {
-                    await txVesselCrewRepository.deleteMany(allCrews);
-                    logger.debug("해당 어선의 모든 유저를 삭제했습니다.");
-                }
+                // 해당 어선의 모든 선원 삭제 (다른 어선의 승선 정보는 유지)
+                await txVesselCrewRepository.delete(vesselName, channelId);
+                logger.debug("해당 어선의 모든 유저를 삭제했습니다.");
 
                 // 알람 삭제
                 const allAlarms = await txAlarmRepository.findMany(vesselName, channelId);

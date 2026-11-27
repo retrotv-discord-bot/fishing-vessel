@@ -1,6 +1,6 @@
 import { TextChannel, type Client } from "discord.js";
 
-import { PrismaClient } from "@prisma/client/extension";
+import { PrismaClient } from "../../generated/prisma/client";
 import prisma from "../config/datasource";
 
 import { logger } from "../config/logger";

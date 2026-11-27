@@ -57,7 +57,13 @@ export default class CrewRepository {
                 },
             },
             include: {
-                vessels: true,
+                // 해당 어선의 연계 정보만 포함 (다른 어선의 직책이 섞이지 않도록)
+                vessels: {
+                    where: {
+                        vesselName: vesselName,
+                        vesselChannelId: vesselChannelId,
+                    },
+                },
             },
         });
     }
